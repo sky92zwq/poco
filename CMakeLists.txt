@@ -766,3 +766,45 @@ message(STATUS "[cmake] C++ symbol visibility:  ${CMAKE_CXX_VISIBILITY_PRESET}")
 foreach(component ${Poco_COMPONENTS})
 	message(STATUS "Building: ${component}")
 endforeach()
+
+# 定义统一的 galaxy_poco 接口（包含所有编译的组件，排除测试/工具组件）
+set(_GALAXY_POCO_EXCLUDE_COMPONENTS CppUnit PageCompiler File2Page ActiveRecordCompiler EncodingsCompiler PocoDoc CppParser)
+
+add_library(galaxy_poco INTERFACE)
+foreach(component ${Poco_COMPONENTS})
+    # 跳过排除列表中的组件
+    if(NOT component IN_LIST _GALAXY_POCO_EXCLUDE_COMPONENTS)
+        if(TARGET Poco::${component})
+            target_link_libraries(galaxy_poco INTERFACE Poco::${component})
+        endif()
+    endif()
+endforeach()
+
+# 创建别名 target
+add_library(galaxy_poco::galaxy_poco ALIAS galaxy_poco)
+
+# 安装 galaxy_poco target
+install(TARGETS galaxy_poco EXPORT galaxy_pocoTargets)
+install(EXPORT galaxy_pocoTargets
+    FILE galaxy_pocoTargets.cmake
+    NAMESPACE galaxy_poco::
+    DESTINATION "${CMAKE_INSTALL_LIBDIR}/cmake/galaxy_poco"
+)
+
+# 生成 galaxy_poco 配置文件
+configure_file(
+    "${CMAKE_CURRENT_SOURCE_DIR}/cmake/galaxy_pocoConfig.cmake.in"
+    "${CMAKE_CURRENT_BINARY_DIR}/galaxy_poco/galaxy_pocoConfig.cmake"
+    @ONLY
+)
+write_basic_package_version_file(
+    "${CMAKE_CURRENT_BINARY_DIR}/galaxy_poco/galaxy_pocoConfigVersion.cmake"
+    VERSION ${PROJECT_VERSION}
+    COMPATIBILITY AnyNewerVersion
+)
+install(
+    FILES
+        "${CMAKE_CURRENT_BINARY_DIR}/galaxy_poco/galaxy_pocoConfig.cmake"
+        "${CMAKE_CURRENT_BINARY_DIR}/galaxy_poco/galaxy_pocoConfigVersion.cmake"
+    DESTINATION "${CMAKE_INSTALL_LIBDIR}/cmake/galaxy_poco"
+)
